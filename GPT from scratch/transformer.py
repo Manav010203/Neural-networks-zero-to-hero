@@ -4,14 +4,14 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 #hyperparameters
-batch_size = 64
-block_size = 256
+batch_size = 32
+block_size = 8
 max_iters = 5000
 eval_interval = 500
-learning_rate = 3e-4
+learning_rate = 1e-3
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 eval_iters = 200
-n_embd = 368
+n_embd = 32
 n_head = 6
 n_layer =6
 dropout = 0.2
@@ -19,7 +19,8 @@ dropout = 0.2
 
 torch.manual_seed(1337)
 
-text = open('input.txt','r').read()
+with open('input.txt', 'r', encoding='utf-8') as f:
+    text = f.read()
 
 # unique char
 chars = sorted(list(set(text)))
@@ -79,13 +80,23 @@ class Head(nn.Module):
         return out
 
 class MultiHead(nn.Module):
-    def __init__(self, num_heads,head_size):
+    # def __init__(self, num_heads,head_size):
+    #     super().__init__()
+    #     self.head = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
+    #     self.proj = nn.Linear(head_size*n_embd,n_embd)
+    #     self.dropout = nn.Dropout(dropout)
+    # def forward(self,x):
+    #     out = torch.cat([h(x) for h in self.head],dim=-1)
+    #     out = self.dropout(self.proj(out))
+    #     return out
+    def __init__(self, num_heads, head_size):
         super().__init__()
-        self.head = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
-        self.proj = nn.Linear(n_embd,n_embd)
+        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
+        self.proj = nn.Linear(head_size * num_heads, n_embd)
         self.dropout = nn.Dropout(dropout)
-    def forward(self,x):
-        out = torch.cat([h(x) for h in self.head],dim=-1)
+
+    def forward(self, x):
+        out = torch.cat([h(x) for h in self.heads], dim=-1)
         out = self.dropout(self.proj(out))
         return out
 
@@ -93,13 +104,15 @@ class FeedForward(nn.Module):
     def __init__(self, n_embd):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(n_embd,4*n_embd),
+            nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
-            nn.Linear(4*n_embd,n_embd),
+            nn.Linear(4 * n_embd, n_embd),
             nn.Dropout(dropout),
         )
-    def forward(self,x):
+
+    def forward(self, x):
         return self.net(x)
+
 
 class Block(nn.Module):
     def __init__(self,n_embd,n_head):
@@ -119,9 +132,20 @@ class BigramModel(nn.Module):
         super().__init__()
         self.token_embedding_table = nn.Embedding(vocab_size,n_embd)
         self.position_embedding_table = nn.Embedding(block_size,n_embd)
-        self.blocks = nn.Sequential(*[Block(n_embd,n_head=n_head) for _ in range(n_layer)])
+        # self.blocks = nn.Sequential(*[Block(n_embd,n_head=n_head) for _ in range(n_layer)])
+        self.blocks = nn.Sequential(*[Block(n_embd, n_head=n_head) for _ in range(n_layer)])
+
         self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd,vocab_size)
+
+        self.apply(self._init_weights)
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
     def forward(self,idx, targets=None):
 
         B,T = idx.shape
@@ -130,6 +154,7 @@ class BigramModel(nn.Module):
         pos_embd = self.position_embedding_table(torch.arange(T,device=device))
         x = tok_embd+pos_embd
         x = self.blocks(x)
+        x = self.ln_f(x)
         logits = self.lm_head(x)
         if targets is None:
             loss = None
