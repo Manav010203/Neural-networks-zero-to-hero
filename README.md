@@ -1,5 +1,12 @@
 # Neural-networks-zero-to-hero
 
-In this repo you will get the andrej karpathy's video work done by me
+In this repo you will get to know what i have learnt from andrej karpathy's videos and articles. 
 
-this also contain my own learnings
+
+link for videos -> (https://www.youtube.com/@AndrejKarpathy/playlists)
+
+link for articles -> (https://karpathy.ai/)
+
+will keep updating.
+
+work in progress....
