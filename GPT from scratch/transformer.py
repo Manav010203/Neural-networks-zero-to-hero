@@ -4,14 +4,14 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 #hyperparameters
-batch_size = 64
-block_size = 32
-max_iters = 5000
+batch_size = 32
+block_size = 12
+max_iters = 20000
 eval_interval = 500
 learning_rate = 1e-3
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 eval_iters = 200
-n_embd = 64
+n_embd = 32
 n_head = 6
 n_layer =6
 dropout = 0.2
